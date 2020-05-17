@@ -40,6 +40,7 @@ metadata
 		attribute "mqtt", "enum", ["disabled","disconnected","reconnecting","connected"]
 		attribute "homie", "enum", ["unconfigured","configured","publishing","published","subscribing", "listening"]
 		attribute "homieDeviceName", "string"
+		attribute "logLevel", "integer"
   }
 }
 
@@ -292,14 +293,42 @@ def disconnect(updateStatus = true)//OK
 }
 
 //LOGGER CONFIG***************************************************************************************************************************
-def updateLogLevel(logLevel)
+
+def updateLogLevel(desiredLevel)
 {
-	state.logLevel = logLevel
+	def logLevel
+	switch(desiredLevel)
+	{
+		case "INFO":
+			logLevel = INFO
+			break
+		case "DEBUG":
+			logLevel = DEBUG
+			break
+		case "TRACE":
+			logLevel = TRACE
+			break
+		case "WARN":
+			logLevel = WARN
+			break
+		case "ERROR":
+			logLevel = ERROR
+			break
+		case "NONE":
+			logLevel = NONE
+			break
+		default:
+			log.info "Invalid log level selected. Setting to DEBUG"
+			logLevel = DEBUG
+		break
+	}
+	
+	sendEvent (name: "logLevel", value: logLevel)
 }
 
 def logger(message, level = -1)
 {
-	if(level <= state.logLevel || level == FORCE)
+	if(level <= device.currentValue("logLevel") || level == FORCE)
 	{
 		switch(level)
 		{

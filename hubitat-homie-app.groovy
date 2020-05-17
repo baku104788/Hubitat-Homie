@@ -107,7 +107,7 @@ def config()//{(settings?.port ? settings?.port :"1883")}
 		section("MQTT Broker Config", hideable: true,hidden: (settings?.broker ? true :false))
 		{
 		  input name: "broker", type: "text", title: "MQTT Broker IP Address", description: "", required: true
-			input name: "port", type: "text", title: "MQTT Broker Port", description: "defaults to 1883", required: false, displayDuringSetup: true
+			input name: "port", type: "text", title: "MQTT Broker Port", description: "defaults to 1883", required: false
 		  input name: "username", type: "text", title: "MQTT Username", description: "(leave blank if none)", required: false
 		  input name: "password", type: "password", title: "MQTT Password", description: "(leave blank if none)", required: false
 			input name: "homiedevice",  type: "text", title: "Advertised homie device name", description: "defaults to hubitat (no spaces, alphanumeric and '-' only)", required: false
@@ -119,7 +119,7 @@ def config()//{(settings?.port ? settings?.port :"1883")}
 		}
     section("Device selection") 
 		{
-			input "loglevel", "enum", title: "Log level", required: true, defaultValue: "WARN", options: ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "NONE"]
+			input "logLevel", "enum", title: "Log level", required: true, defaultValue: "WARN", options: ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "NONE"]
       input "devList", "capability.*",hideWhenEmpty: false, multiple: true, required: false, title: "<b>Devices to publish</b>", submitOnChange: false
 		}
 
@@ -130,14 +130,12 @@ def config()//{(settings?.port ? settings?.port :"1883")}
 def installed()
 {
 	logger("App installed",FORCE)
-	updateLogLevel(settings?.loglevel)
 	initDriver()
 }
 
 def updated()
 {
   logger("App updated",FORCE)
-	updateLogLevel(settings?.loglevel)
 	initDriver()
 }
 
@@ -539,7 +537,7 @@ def getDeviceByMqttName(mqttName)//By the published device name
 //INITIALIZATION OF THE CHILD DEVICE / MQTT SETTINGS***************************************************************************************************************
 def initDriver(delayConnect = false)
 {
-	logger ("Homie MQTT APP - Driver Configuration",INFO)
+	logger ("Homie MQTT APP - Updating Driver Configuration",FORCE)
   unsubscribe()
 	
 	if(!createMQTTdevice())//check for child.
@@ -548,7 +546,7 @@ def initDriver(delayConnect = false)
 		return 
 	}
 
-	getChildDevice(mqttDeviceNetworkID).updateLogLevel(state.logLevel)
+	getChildDevice(mqttDeviceNetworkID).updateLogLevel(settings?.logLevel)
 	
 	if(!settings?.broker)//advise configuration needed. 
 	{
@@ -923,38 +921,19 @@ def legalizeString(name) {
 }
 
 //LOGGER CONFIG***************************************************************************************************************************
-def updateLogLevel(desiredLevel)
-{
-	switch(desiredLevel)
-	{
-		case "INFO":
-			state.logLevel = INFO
-			break;
-		case "DEBUG":
-			state.logLevel = DEBUG
-			break
-		case "TRACE":
-			state.logLevel = TRACE
-			break
-		case "WARN":
-			state.logLevel = WARN
-			break
-		case "ERROR":
-			state.logLevel = ERROR
-			break
-		case "NONE":
-			state.logLevel = NONE
-			break
-		default:
-			log.info "Invalid log level selected. Setting to DEBUG"
-			state.logLevel = DEBUG
-		break
-	}
-}
-
 def logger(message, level = -1)
 {
-	if(level <= state.logLevel || level == FORCE)
+	def logLevel
+	try
+	{
+		logLevel = getChildDevice(mqttDeviceNetworkID).currentValue("logLevel")
+	}
+	catch(ex)
+	{
+		logLevel = WARN
+	}
+	
+	if(level <= logLevel || level == FORCE)
 	{
 		switch(level)
 		{
