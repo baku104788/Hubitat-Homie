@@ -71,6 +71,8 @@ import groovy.transform.Field
 	"mute" : "muted"
 ]
 
+@Field LOGLEVELSETTING = 3
+
 @Field FORCE = 999
 @Field TRACE = 4
 @Field DEBUG = 3
@@ -119,7 +121,7 @@ def config()//{(settings?.port ? settings?.port :"1883")}
 		}
     section("Device selection") 
 		{
-			input "logLevel", "enum", title: "Log level", required: true, defaultValue: "WARN", options: ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "NONE"]
+			//put "logLevel", "enum", title: "Log level", required: true, defaultValue: "WARN", options: ["TRACE", "DEBUG", "INFO", "WARN", "ERROR", "NONE"]
       input "devList", "capability.*",hideWhenEmpty: false, multiple: true, required: false, title: "<b>Devices to publish</b>", submitOnChange: false
 		}
 
@@ -546,7 +548,7 @@ def initDriver(delayConnect = false)
 		return 
 	}
 
-	getChildDevice(mqttDeviceNetworkID).updateLogLevel(settings?.logLevel)
+	//tChildDevice(mqttDeviceNetworkID).updateLogLevel(settings?.logLevel)
 	
 	if(!settings?.broker)//advise configuration needed. 
 	{
@@ -922,18 +924,8 @@ def legalizeString(name) {
 
 //LOGGER CONFIG***************************************************************************************************************************
 def logger(message, level = -1)
-{
-	def logLevel
-	try
-	{
-		logLevel = getChildDevice(mqttDeviceNetworkID).currentValue("logLevel")
-	}
-	catch(ex)
-	{
-		logLevel = WARN
-	}
-	
-	if(level <= logLevel || level == FORCE)
+{	
+	if(level <= LOGLEVELSETTING || level == FORCE)
 	{
 		switch(level)
 		{

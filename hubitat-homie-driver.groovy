@@ -44,7 +44,7 @@ metadata
   }
 }
 
-
+@Field LOGLEVELSETTING = 3
 
 @Field FORCE = 999
 @Field TRACE = 4
@@ -328,7 +328,7 @@ def updateLogLevel(desiredLevel)
 
 def logger(message, level = -1)
 {
-	if(level <= device.currentValue("logLevel") || level == FORCE)
+	if(level <= LOGLEVELSETTING || level == FORCE)
 	{
 		switch(level)
 		{
