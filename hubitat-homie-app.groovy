@@ -394,22 +394,26 @@ def dimmer(evt,devName=null,attribName = null)//OK
   
 }
 
-//SETTABLE TYPE FUNCTIONS************************************************************************************************************************
+//SETTABLE FUNCTIONS************************************************************************************************************************
 def set_color(device,value)//TODO
 {
-  devAttribs = device.supportedAttributes
-  logger("dev: ${device}",TRACE)
-  hue = devAttribs.currentValue("hue")
-  saturation = devAttribs.currentValue("saturation")
-  level = devAttribs.currentValue("level")
-		
-  logger("mqtt set processed ${device.displayName} : color = ${value}",TRACE)
+	colorArray = value.split(",")
+	
+	hue = (settings?.hue360 ? (colorArray[0] as Double)/3.59 :colorArray[0])
+	
+	color = [:]                
+	color.put('hue',hue)
+	color.put('saturation',colorArray[1])
+	color.put('level',colorArray[2])
+	device.setColor(color)
+
+  logger("mqtt set processed ${device.displayName} : color = ${color}",INFO)
 }
 
 def set_colorTemperature(device,value)//TODO
 {
-	device.setColorTemperature(value)	
-  logger("mqtt set processed ${device.displayName} : colorTemperature = ${value}",TRACE)
+	device.setColorTemperature(value as Integer)	
+  logger("mqtt set processed ${device.displayName} : colorTemperature = ${value}",INFO)
 }
 
 def set_dimmer(device,value)//OK
@@ -433,7 +437,7 @@ def set_lock(device,value)//OK
 			logger("Invalid set command ${device.displayName} : lock = ${level}",ERROR)	
 			return
 	}
-  logger("mqtt set processed ${device.displayName} : lock = ${level}",TRACE)	
+  logger("mqtt set processed ${device.displayName} : lock = ${level}",INFO)	
 }
 
 def set_switch(device,value)//OK
@@ -450,7 +454,7 @@ def set_switch(device,value)//OK
 			logger("Invalid set command ${device.displayName} : switch = ${value}",ERROR)	
 			return
 	}
-  logger("mqtt set processed ${device.displayName} : switch = ${value}",TRACE)		
+  logger("mqtt set processed ${device.displayName} : switch = ${value}",INFO)		
 }
 
 def mqttPublish(String topic, String payload, boolean retained = false)
@@ -807,7 +811,7 @@ def publishHomie(fullPublish = true)
           first = false
 				}
 				//publish the value
-				mqttDriver.mqttPublish("${mqttTopicName(nodeName,attribute)}","${this."$listener"(null,nodeName,publishedAs)}" ,true)
+				mqttDriver.mqttPublish("${mqttTopicName(nodeName,publishedAs)}","${this."$listener"(null,nodeName,publishedAs)}" ,true)
 				
 			}
 				
