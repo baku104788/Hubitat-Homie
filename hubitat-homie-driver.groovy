@@ -293,39 +293,6 @@ def disconnect(updateStatus = true)//OK
 }
 
 //LOGGER CONFIG***************************************************************************************************************************
-
-def updateLogLevel(desiredLevel)
-{
-	def logLevel
-	switch(desiredLevel)
-	{
-		case "INFO":
-			logLevel = INFO
-			break
-		case "DEBUG":
-			logLevel = DEBUG
-			break
-		case "TRACE":
-			logLevel = TRACE
-			break
-		case "WARN":
-			logLevel = WARN
-			break
-		case "ERROR":
-			logLevel = ERROR
-			break
-		case "NONE":
-			logLevel = NONE
-			break
-		default:
-			log.info "Invalid log level selected. Setting to DEBUG"
-			logLevel = DEBUG
-		break
-	}
-	
-	sendEvent (name: "logLevel", value: logLevel)
-}
-
 def logger(message, level = -1)
 {
 	if(level <= LOGLEVELSETTING || level == FORCE)
