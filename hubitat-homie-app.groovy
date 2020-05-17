@@ -762,18 +762,23 @@ def publishHomie(fullPublish = true)
 
 				mqttDriver.mqttPublish("${mqttTopicName("hub","\$name")}","hub" ,true)
 				mqttDriver.mqttPublish("${mqttTopicName("hub","\$type")}","mode" ,true)
-				mqttDriver.mqttPublish("${mqttTopicName("hub","\$properties")}","mode,hsm" ,true)
+				mqttDriver.mqttPublish("${mqttTopicName("hub","\$properties")}","mode${(location.hsmStatus?",hsm":"")}" ,true)
 				mqttDriver.mqttPublish("${mqttTopicName("hub","mode","\$name")}","${getChildDevice(mqttDeviceNetworkID).currentValue("homieDeviceName")} mode" ,true)
 				mqttDriver.mqttPublish("${mqttTopicName("hub","mode","\$datatype")}","string" ,true)
 				mqttDriver.mqttPublish("${mqttTopicName("hub","mode","\$settable")}","true" ,true)
 				
-				mqttDriver.mqttPublish("${mqttTopicName("hub","hsm","\$name")}","${getChildDevice(mqttDeviceNetworkID).currentValue("homieDeviceName")} safey monitor" ,true)
-				mqttDriver.mqttPublish("${mqttTopicName("hub","hsm","\$datatype")}","string" ,true)
-				mqttDriver.mqttPublish("${mqttTopicName("hub","hsm","\$settable")}","false" ,true)				
+				if(location.hsmStatus)
+				{//only if configured on hub
+					mqttDriver.mqttPublish("${mqttTopicName("hub","hsm","\$name")}","${getChildDevice(mqttDeviceNetworkID).currentValue("homieDeviceName")} safey monitor" ,true)
+					mqttDriver.mqttPublish("${mqttTopicName("hub","hsm","\$datatype")}","string" ,true)
+					mqttDriver.mqttPublish("${mqttTopicName("hub","hsm","\$settable")}","false" ,true)				
+				}
 				
 			}
 			mqttDriver.mqttPublish("${mqttTopicName("hub","mode")}",hubMode(null,"hub","mode") ,true)
-			mqttDriver.mqttPublish("${mqttTopicName("hub","hsm")}",hubHsm(null,"hub","hsm") ,true)
+			
+			//only if configured on hub
+			if(location.hsmStatus) mqttDriver.mqttPublish("${mqttTopicName("hub","hsm")}",hubHsm(null,"hub","hsm") ,true)
 			
 			
 		}
