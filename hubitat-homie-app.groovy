@@ -71,7 +71,7 @@ import groovy.transform.Field
 	"mute" : "muted"
 ]
 
-@Field LOGLEVELSETTING = 3
+@Field LOGLEVELSETTING = 2
 
 @Field FORCE = 999
 @Field TRACE = 4
@@ -199,6 +199,10 @@ def mqtt_set(node, property, value)//TODO
       if(!node) return true
       set_lock(mqttNode,value)
       break
+    case "presence":
+      if(!node) return true
+      set_presence(mqttNode,value)
+      break
     case "switch":
       if(!node) return true
       set_switch(mqttNode,value)
@@ -306,6 +310,12 @@ def defaultHandler(evt,devName = null,attribName = null)//OK
     result = "${currentValue}"
   }
 	
+	if(result=="null")
+	{
+		result = 0 //set to zero for nulls
+		
+	}
+	
 
   if(evt)
   {
@@ -340,16 +350,38 @@ def color(evt,devName=null,attribName = null)//OK
   }
 	
   hue = device.currentValue("hue")
-	if(settings?.hue360==true)
-	{//convert hue to 360
-		hue = (hue*3.59)
-	}
-	
+	try
+    {
+        if(settings?.hue360==true)
+	    {//convert hue to 360
+    		hue = (hue*3.59)
+    	}
+    }
+    catch(ex)
+    {
+         hue = 0
+        logger("${ex}",ERROR)
+    }
 	saturation = device.currentValue("saturation")
   level = device.currentValue("level")
 
   currentValue = "${hue},${saturation},${level}"
 
+	if(hue=="null")
+	{
+		hue=0
+	}
+	
+	if(saturation=="null")
+	{
+		saturation=0
+	}
+	
+	if(level=="null")
+	{
+		level=0
+	}
+	
   if(evt)
   {
     mqttPublish("${mqttTopicID(evt.deviceId,"color")}","${currentValue}" ,true)
@@ -381,8 +413,14 @@ def dimmer(evt,devName=null,attribName = null)//OK
     device = getDeviceByMqttName(devName)
   }
 
+	try
+	{
   currentValue = (Double) device.currentValue("level") / 100
-  
+	}
+	catch(ex)
+	{
+		currentValue=0
+	}
   if(evt)
   {
     mqttPublish("${mqttTopicID(evt.deviceId,"dimmer")}","${currentValue}" ,true)
@@ -455,6 +493,30 @@ def set_switch(device,value)//OK
 			return
 	}
   logger("mqtt set processed ${device.displayName} : switch = ${value}",INFO)		
+}
+
+def set_presence(device,value)//OK
+{
+	try
+	{
+		switch(value.toLowerCase())
+		{
+			case "true":
+				device.arrived()
+				break
+			case "false":
+				device.departed()
+				break
+			default:
+				logger("Invalid set command ${device.displayName} : presence = ${value}",ERROR)	
+				return
+		}
+		logger("mqtt set processed ${device.displayName} : switch = ${value}",INFO)		
+	}
+	catch(ex)
+	{
+		logger("mqtt set failed ${device.displayName} : switch = ${value}",INFO)
+	}
 }
 
 def mqttPublish(String topic, String payload, boolean retained = false)
