@@ -532,6 +532,7 @@ def set_hubmode(value)
 {
     try
     {
+        logger("mqtt set hub : hubmode = ${value}",ERROR)
         location.setMode(value)
     }
     catch(ex)
@@ -764,8 +765,9 @@ def initHomie()
 	
 	if(settings?.hub)
 	{
-		subscribe(location.mode, hubMode)
-		subscribe(location.hsmStatus, hubHsm)
+		//subscribe(location.mode, hubMode)
+        subscribe(location,"mode",locationEvent)
+		subscribe(location,"hsmStatus", hubHsm)
 	}
 	
 	if(!loopDev && !settings?.hub)
