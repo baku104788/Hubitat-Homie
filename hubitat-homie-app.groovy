@@ -766,7 +766,7 @@ def initHomie()
 	if(settings?.hub)
 	{
 		//subscribe(location.mode, hubMode)
-        subscribe(location,"mode",locationEvent)
+        subscribe(location,"mode",hubMode)
 		subscribe(location,"hsmStatus", hubHsm)
 	}
 	
