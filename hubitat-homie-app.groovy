@@ -73,7 +73,7 @@ import groovy.transform.Field
 
 @Field LOGLEVELSETTING = 2
 
-@Field FORCE = 999
+@Field FORCE = 3
 @Field TRACE = 4
 @Field DEBUG = 3
 @Field INFO =2
@@ -174,7 +174,7 @@ def mqtt_set(node, property, value)//TODO
 	if(node)
 	{
 		mqttNode = getDeviceByMqttName(node)
-		if(!mqttNode)
+		if(!mqttNode && node != "hub")
 		{
 			logger("Unable to process set for ${node} ${property}",ERROR)
 			assert mqttNode
@@ -207,6 +207,10 @@ def mqtt_set(node, property, value)//TODO
       if(!node) return true
       set_switch(mqttNode,value)
       break
+    case "hubmode":
+      if(!node) return true
+      set_hubmode(value)
+      break
     default:
       if(node)//only show error if trying to control
 				logger("MQTT set function not available for: ${property}",ERROR)
@@ -219,7 +223,7 @@ def hubMode(evt,devName=null,attribName = null)
 {//this does MODE
 	if(evt)
 	{//publish to mqtt
-		mqttPublish("${mqttTopicName("hub","mode")}","${location.getMode()}" ,true)
+		mqttPublish("${mqttTopicName("hub","hubmode")}","${location.getMode()}" ,true)
 	}
 	else
 	{
@@ -450,8 +454,9 @@ def set_color(device,value)//TODO
 
 def set_colorTemperature(device,value)//TODO
 {
+	logger("mqtt set processed ${device.displayName} : colorTemperature = ${value}",INFO)
 	device.setColorTemperature(value as Integer)	
-  logger("mqtt set processed ${device.displayName} : colorTemperature = ${value}",INFO)
+  
 }
 
 def set_dimmer(device,value)//OK
@@ -519,6 +524,21 @@ def set_presence(device,value)//OK
 	}
 }
 
+
+def set_hubmode(value)
+{
+    logger("hub set mode",ERROR)
+    try
+    {
+        location.setMode(value)
+    }
+    catch(ex)
+    {
+        logger("mqtt set failed hub : mode = ${value}",ERROR)
+    }
+    
+}
+
 def mqttPublish(String topic, String payload, boolean retained = false)
 {
 	try
@@ -584,16 +604,46 @@ def getDeviceByID(devId)//By the HE device ID
  	return false
 }
 
+
+/*
+def getDeviceObj(id) {
+    def found
+    settings.allDevices.each { device -> 
+        if (device.getId() == id) {
+            log ("Found ID [$id] in allDevices as $device with id: ${device.id}","INFO")
+            found = device
+        }
+    }
+    return found
+}
+*/
+
+
+
+//JDF TEMP FIX
 def getDeviceByMqttName(mqttName)//By the published device name
 {
-  targetDevIndex = state.name2index.get(mqttName)
-	device = getDeviceByIndex(targetDevIndex)
-	
-	if(device)
+  //targetDevIndex = state.name2index.get(mqttName)
+	//device = getDeviceByIndex(targetDevIndex)
+	deviceList = (settings?.devList)
+	theDevice = null
+	deviceList.each { device ->
+		if(mqttName == legalizeString(device.getDisplayName()))
+		{
+			//logger("${mqttName} is ${legalizeString(device.getDisplayName())}",ERROR)
+			theDevice = device
+
+		}
+	}
+
+
+
+	if(theDevice)
 	{
 		//logger("${mqttName} is ${device.displayName}",TRACE)
-		return device
+		return theDevice
 	}
+	
 	logger("MQTT ${mqttName} not found.",ERROR) 
  	return false
 }
@@ -824,10 +874,10 @@ def publishHomie(fullPublish = true)
 
 				mqttDriver.mqttPublish("${mqttTopicName("hub","\$name")}","hub" ,true)
 				mqttDriver.mqttPublish("${mqttTopicName("hub","\$type")}","mode" ,true)
-				mqttDriver.mqttPublish("${mqttTopicName("hub","\$properties")}","mode${(location.hsmStatus?",hsm":"")}" ,true)
-				mqttDriver.mqttPublish("${mqttTopicName("hub","mode","\$name")}","${getChildDevice(mqttDeviceNetworkID).currentValue("homieDeviceName")} mode" ,true)
-				mqttDriver.mqttPublish("${mqttTopicName("hub","mode","\$datatype")}","string" ,true)
-				mqttDriver.mqttPublish("${mqttTopicName("hub","mode","\$settable")}","true" ,true)
+				mqttDriver.mqttPublish("${mqttTopicName("hub","\$properties")}","hubmode${(location.hsmStatus?",hsm":"")}" ,true)
+				mqttDriver.mqttPublish("${mqttTopicName("hub","hubmode","\$name")}","${getChildDevice(mqttDeviceNetworkID).currentValue("homieDeviceName")} mode" ,true)
+				mqttDriver.mqttPublish("${mqttTopicName("hub","hubmode","\$datatype")}","string" ,true)
+				mqttDriver.mqttPublish("${mqttTopicName("hub","hubmode","\$settable")}","true" ,true)
 				
 				if(location.hsmStatus)
 				{//only if configured on hub
@@ -837,7 +887,7 @@ def publishHomie(fullPublish = true)
 				}
 				
 			}
-			mqttDriver.mqttPublish("${mqttTopicName("hub","mode")}",hubMode(null,"hub","mode") ,true)
+			mqttDriver.mqttPublish("${mqttTopicName("hub","hubmode")}",hubMode(null,"hub","hubmode") ,true)
 			
 			//only if configured on hub
 			if(location.hsmStatus) mqttDriver.mqttPublish("${mqttTopicName("hub","hsm")}",hubHsm(null,"hub","hsm") ,true)
@@ -873,6 +923,9 @@ def publishHomie(fullPublish = true)
 					
           mqttDriver.mqttPublish("${mqttTopicName(nodeName,publishedAs,"\$name")}","${nodeName} ${publishedAs}" ,true)
           mqttDriver.mqttPublish("${mqttTopicName(nodeName,publishedAs,"\$datatype")}","${this."$listenerDatatype"(nodeName,publishedAs)}" ,true)
+          if("${this."$listenerDatatype"(nodeName,publishedAs)}" == "color")
+             mqttDriver.mqttPublish("${mqttTopicName(nodeName,publishedAs,"\$format")}","hsv" ,true)
+                    
           mqttDriver.mqttPublish("${mqttTopicName(nodeName,publishedAs,"\$settable")}","${isSettable(publishedAs) ? "true" :"false"}" ,true)
 					propertiesString = propertiesString + "${(first ? "" :",")}" +publishedAs
           first = false
@@ -920,6 +973,10 @@ def subscribeHomie()//if connection disconnect resets subscribes so just restart
 	pauseExecution(250)
 	mqttDriver = getChildDevice(mqttDeviceNetworkID)
 	mqttDriver.setHomie("subscribing")
+    
+    if(settings?.hub)//to do fix this so it isn't hardcoded and make the hub part of the list? idk
+    mqttDriver.mqttSubscribe("homie/${getChildDevice(mqttDeviceNetworkID).currentValue("homieDeviceName")}/hub/+/set")
+    
 	for(nodeName in state.homieAttribsList.keySet())
 	{
 		for(attribute in state.homieAttribsList.get(nodeName).keySet())
