@@ -173,12 +173,15 @@ def mqtt_set(node, property, value)//TODO
 {//return true if no node as this is just a check for the ability to set
 	if(node)
 	{
-		mqttNode = getDeviceByMqttName(node)
-		if(!mqttNode && node != "hub")
-		{
-			logger("Unable to process set for ${node} ${property}",ERROR)
-			assert mqttNode
-		}
+        if(node !="hub")//fix this later
+        {
+            mqttNode = getDeviceByMqttName(node)
+            if(!mqttNode)
+            {
+                logger("Unable to process set for ${node} ${property}",ERROR)
+                assert mqttNode
+            }
+        }
 	}
 	
   switch(property)
@@ -527,7 +530,6 @@ def set_presence(device,value)//OK
 
 def set_hubmode(value)
 {
-    logger("hub set mode",ERROR)
     try
     {
         location.setMode(value)
