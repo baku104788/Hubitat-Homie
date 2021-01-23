@@ -37,19 +37,16 @@ import groovy.transform.Field
 			color : [
           attributeList : ["hue","saturation","level"],			//Attribute list needed to handle this capability
           publish_name : "color",														//This is name we are using to publish as. Also this is the name of the function that handles this attribute
-      ],
+      ],/* 
 			colorName : [//This is listed otherwise it would not be included.
-      ],
+      ], */
 		],
     "SwitchLevel": //capability
 		[
 			level : [
           publish_name : "dimmer"														//This is the function that will process incoming Hubitat events
       ],
-		],
-    "Refresh": [//capability specified like this without an attribute means it is skipped. (this would have been skipped by default as it has no attributes)
-			//(this would have been skipped by default as it has no attributes)
-		],
+		] ,
 	]
 
 
@@ -68,10 +65,11 @@ import groovy.transform.Field
 	"water" : "wet",
   "lock" : "locked",
   "switch" : "on",
+  "refresh" : "on",
 	"mute" : "muted"
 ]
 
-@Field LOGLEVELSETTING = 3
+@Field LOGLEVELSETTING = 4
 
 @Field FORCE = 3
 @Field TRACE = 4
@@ -210,6 +208,10 @@ def mqtt_set(node, property, value)//TODO
       if(!node) return true
       set_switch(mqttNode,value)
       break
+	case "refresh":
+      if(!node) return true
+      set_refresh(mqttNode,value)
+      break
     case "hubmode":
       if(!node) return true
       set_hubmode(value)
@@ -253,6 +255,12 @@ def defaultHandler_datatype(devName,attribName)
   {
     device = getDeviceByMqttName(devName)
     
+	if(attribName=="refresh")
+	{
+		return "boolean"
+	}
+
+
     for (attrib in device.supportedAttributes)
     {
       if(attrib.name==attribName)
@@ -527,6 +535,27 @@ def set_presence(device,value)//OK
 	}
 }
 
+def set_refresh(device,value)
+{
+	try
+	{
+		switch(value.toLowerCase())
+		{
+			case "true":
+				device.refresh()
+				logger("Device refreshed ${device.displayName}",TRACE)
+				break
+			default:
+				logger("Invalid set command ${device.displayName} : presence = ${value}",ERROR)	
+				return
+		}
+	}
+	catch(ex)
+	{
+		logger("Device refresh failed ${device.displayName}",INFO)
+	}
+}
+
 
 def set_hubmode(value)
 {
@@ -731,15 +760,23 @@ def initHomie()
 							}
 							else
 							{
-									if( !unconfiguredProperties.contains(attrib.name))//only include in list once
-										unconfiguredProperties.push(attrib.name)
+								if( !unconfiguredProperties.contains(attrib.name))//only include in list once
+									unconfiguredProperties.push(attrib.name)
 							}
 						}
-            else//TODO
-            {//key already exists make sure handler matches
-							logger("Multiple capabilities support this attribute: ${device.displayName}, ${attrib.name}",WARN)
-            }
+						else//TODO
+						{//key already exists make sure handler matches
+										logger("Multiple capabilities support this attribute: ${device.displayName}, ${attrib.name}",WARN)
+						}
 					}
+				//Refresh doesn't have an attribute so we have to manually do this.
+				if(cap.name=="Refresh")
+				{
+					logger("Refresh capability found for ${device.displayName}",TRACE)
+					listener = assignListener(device,cap.name,"refresh")
+					configuredProperties.put("refresh",listener)
+					//configuredProperties.put("refresh","defaultHandler")
+				}
 			}
 
 			if(configuredProperties)//this device has properties to publish.  Yay. Otherwise who cares.
