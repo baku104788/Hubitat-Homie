@@ -71,7 +71,7 @@ import groovy.transform.Field
 	"mute" : "muted"
 ]
 
-@Field LOGLEVELSETTING = 2
+@Field LOGLEVELSETTING = 3
 
 @Field FORCE = 3
 @Field TRACE = 4
@@ -532,7 +532,7 @@ def set_hubmode(value)
 {
     try
     {
-        logger("mqtt set hub : hubmode = ${value}",ERROR)
+        logger("mqtt set hub : hubmode = ${value}",INFO)
         location.setMode(value)
     }
     catch(ex)

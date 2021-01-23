@@ -18,6 +18,9 @@
 //VERSION 1.0
 import groovy.transform.Field
 
+
+//TODO add a heartbeat publish to catch disconnection - currently OH kludge does this
+
 @Field VERSION = 1
 
 metadata
@@ -82,7 +85,8 @@ def mqttPublish(String topic, String payload, boolean retained = false)
 		else
 		{
 			logger("MQTT unable to publish - not connected",ERROR)
-			disconnect()//triggers reconnect
+			if(device.currentValue("mqtt")!="reconnecting")
+				reconnect()//triggers reconnect
 		}
 	}
 	catch(ex)
@@ -153,7 +157,7 @@ def initialize()//this gets called at boot
 def repubName()
 {	
 	if(device.currentValue("homie")=="listening" && device.currentValue("mqtt")=="connected")
-		mqttPublish("homie/${device.currentValue("homieDeviceName")}/\$name","${device.currentValue("homieDeviceName")}" ,true) 
+		mqttPublish("homie/${device.currentValue("homieDeviceName")}/\$heartbeat",now().toString() ,true) 
 }
 //********************************TO REMOVE WHEN OPENHAB FIXED https://github.com/openhab/openhab-addons/issues/7252********************************************
 
@@ -173,12 +177,16 @@ def setupConnectionString(server,clientID,homieDeviceName,user=null,pass=null,ap
 	state.App_Version = appVersion
 }
 
-def reconnect(delay = 10000)
+def reconnect(retryCount=1, delay = 10000)
 {
-	logger("Retrying MQTT connection",INFO)
+	logger("Retrying MQTT connection - attempt #${retryCount}",INFO)
 	sendEvent (name: "mqtt", value: "reconnecting")
 	pauseExecution(delay)
 	connect(true)
+	if(!interfaces.mqtt.isConnected())
+	{//retry
+		reconnect(retryCount+1)
+	}
 }
 
 
@@ -265,6 +273,8 @@ void mqttClientStatus(message)//TODO - handle errors
     catch (e)
     {
 			logger("${e}",ERROR)
+			if(device.currentValue("mqtt")!="reconnecting")
+				reconnect()//triggers reconnect
     }
 	}
   else 
