@@ -47,6 +47,12 @@ import groovy.transform.Field
           publish_name : "dimmer"														//This is the function that will process incoming Hubitat events
       ],
 		] ,
+	"Battery": //capability
+		[
+			battery : [
+          publish_name : "battery"														//This is the function that will process incoming Hubitat events
+      ],
+		] ,
 	]
 
 
@@ -69,9 +75,9 @@ import groovy.transform.Field
 	"mute" : "muted"
 ]
 
-@Field LOGLEVELSETTING = 4
+@Field LOGLEVELSETTING = 2
 
-@Field FORCE = 3
+@Field FORCE = 10
 @Field TRACE = 4
 @Field DEBUG = 3
 @Field INFO =2
@@ -192,6 +198,10 @@ def mqtt_set(node, property, value)//TODO
       if(!node) return true
       set_colorTemperature(mqttNode,value)
       break
+    case "speed":
+      if(!node) return true
+      set_speed(mqttNode,value)
+      break
     case "dimmer":
       if(!node) return true
       set_dimmer(mqttNode,value)
@@ -309,6 +319,7 @@ def defaultHandler(evt,devName = null,attribName = null)//OK
     attribute = attribName
     device = getDeviceByMqttName(devName)
 		currentValue = device.currentValue(attribName)
+		logger("Current Value for ${devName} ${attribName}. is ${currentValue}",TRACE)
   }
 
 	def result = "undef"
@@ -327,7 +338,7 @@ def defaultHandler(evt,devName = null,attribName = null)//OK
 	
 	if(result=="null")
 	{
-		result = 0 //set to zero for nulls
+		result = -1 //set to zero for nulls
 		
 	}
 	
@@ -413,6 +424,11 @@ def dimmer_datatype(devName,attribName)
 	return "float"
 }
 
+def battery_datatype(devName,attribName)
+{
+	return "percent"
+}
+
 def dimmer(evt,devName=null,attribName = null)//OK
 {
 	def device
@@ -430,11 +446,45 @@ def dimmer(evt,devName=null,attribName = null)//OK
 
 	try
 	{
-  currentValue = (Double) device.currentValue("level") / 100
+      currentValue = (Double) device.currentValue("level") / 100
 	}
 	catch(ex)
 	{
 		currentValue=0
+	}
+  if(evt)
+  {
+    mqttPublish("${mqttTopicID(evt.deviceId,"dimmer")}","${currentValue}" ,true)
+  }
+  else
+  {
+    return(currentValue)
+  }
+  
+}
+
+def battery(evt,devName=null,attribName = null)//OK
+{
+	def device
+	def currentValue
+	
+  //PUBLISH TO MQTT
+  if(evt)
+  {
+    device = evt.getDevice()
+  }
+  else
+  {
+    device = getDeviceByMqttName(devName)
+  }
+
+	try
+	{
+      currentValue = (Double) device.currentValue("battery") * 100
+	}
+	catch(ex)
+	{
+		currentValue=-1
 	}
   if(evt)
   {
@@ -468,6 +518,20 @@ def set_colorTemperature(device,value)//TODO
 	logger("mqtt set processed ${device.displayName} : colorTemperature = ${value}",INFO)
 	device.setColorTemperature(value as Integer)	
   
+}
+
+def set_speed(device,value)//TODO
+{
+	logger("mqtt set received ${device.displayName} : speed = ${value}",INFO)
+    value = value.toLowerCase()
+    if(value == "low" || value == "medium-low" || value == "medium" || value == "medium-high" || value == "high" || value == "on" || value == "off" || value == "auto")
+    {
+        device.setSpeed(value)	
+    }
+    else
+    {
+        logger("mqtt set invalid ${device.displayName} : speed = ${value}",ERROR)
+    }
 }
 
 def set_dimmer(device,value)//OK
@@ -961,9 +1025,10 @@ def publishHomie(fullPublish = true)
 				if(fullPublish)
 				{
 					listenerDatatype="${listener}_datatype"
-					
+                    
           mqttDriver.mqttPublish("${mqttTopicName(nodeName,publishedAs,"\$name")}","${nodeName} ${publishedAs}" ,true)
           mqttDriver.mqttPublish("${mqttTopicName(nodeName,publishedAs,"\$datatype")}","${this."$listenerDatatype"(nodeName,publishedAs)}" ,true)
+          
           if("${this."$listenerDatatype"(nodeName,publishedAs)}" == "color")
              mqttDriver.mqttPublish("${mqttTopicName(nodeName,publishedAs,"\$format")}","hsv" ,true)
                     
